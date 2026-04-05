@@ -1,13 +1,15 @@
-import React from "react";// src/pages/admin/modules/HealthEducationManager.jsx
+import React from "react";
 import { useState } from "react";
 import { db } from "../../../firebase/config";
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useCollection } from "../../../hooks/useCollection";
+import { deleteFile } from "../../../lib/s3";
 import {
   Modal, Field, Input, Textarea, Select, Toggle, Badge,
   SaveButton, EmptyState, SectionHeader, AddButton,
   Table, Tr, Td, ErrorMsg, TagInput
 } from "../../../components/AdminUI";
+import FileUpload from "../../../components/FileUpload";
 import { Pencil, Trash2 } from "lucide-react";
 
 const POST_TYPES = [
@@ -63,9 +65,10 @@ export default function HealthEducationManager() {
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (p) => {
     if (!window.confirm("Delete this post?")) return;
-    await deleteDoc(doc(db, "healthEducation", id));
+    if (p.thumbnailUrl) await deleteFile(p.thumbnailUrl).catch(() => {});
+    await deleteDoc(doc(db, "healthEducation", p.id));
   };
 
   const currentType = POST_TYPES.find(t => t.value === activeType);
@@ -103,9 +106,18 @@ export default function HealthEducationManager() {
             action={<AddButton label="Create One" onClick={openAdd} />}
           />
         ) : (
-          <Table cols={["Title", "Author", "Tags", "Status", "Actions"]}>
+          <Table cols={["", "Title", "Author", "Tags", "Status", "Actions"]}>
             {filtered.map((p) => (
               <Tr key={p.id}>
+                <Td>
+                  {p.thumbnailUrl ? (
+                    <img src={p.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover" onError={(e) => e.target.style.display = "none"} />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-lg">
+                      {currentType?.label.split(" ")[0]}
+                    </div>
+                  )}
+                </Td>
                 <Td>
                   <div className="font-medium text-white">{p.title}</div>
                   <div className="text-xs text-gray-500 mt-0.5">{p.category} {p.month && `· ${p.month}`}</div>
@@ -123,7 +135,7 @@ export default function HealthEducationManager() {
                 <Td>
                   <div className="flex gap-2">
                     <button onClick={() => openEdit(p)} className="text-gray-400 hover:text-teal-400 p-1 transition"><Pencil size={14} /></button>
-                    <button onClick={() => handleDelete(p.id)} className="text-gray-400 hover:text-red-400 p-1 transition"><Trash2 size={14} /></button>
+                    <button onClick={() => handleDelete(p)} className="text-gray-400 hover:text-red-400 p-1 transition"><Trash2 size={14} /></button>
                   </div>
                 </Td>
               </Tr>
@@ -135,6 +147,7 @@ export default function HealthEducationManager() {
         <Modal title={editing ? "Edit Post" : `New ${currentType?.label.split(" ").slice(1).join(" ")}`} onClose={() => setShowModal(false)} size="xl">
           <ErrorMsg msg={error} />
           <div className="grid grid-cols-2 gap-5">
+
             <div className="col-span-2">
               <Field label="Title" required>
                 <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Article title..." />
@@ -184,8 +197,16 @@ export default function HealthEducationManager() {
               </Select>
             </Field>
 
-            <Field label="Thumbnail URL">
-              <Input value={form.thumbnailUrl} onChange={(e) => set("thumbnailUrl", e.target.value)} placeholder="https://..." />
+            {/* Thumbnail upload */}
+            <Field label="Thumbnail Image">
+              <FileUpload
+                value={form.thumbnailUrl}
+                onChange={(url) => set("thumbnailUrl", url)}
+                folder="blog/thumbnails"
+                accept="image/*"
+                label="Upload thumbnail"
+                maxMB={5}
+              />
             </Field>
 
             <div className="col-span-2">

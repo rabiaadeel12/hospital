@@ -1,13 +1,15 @@
-import React from "react";// src/pages/admin/modules/MediaGalleryManager.jsx
+import React from "react";
 import { useState } from "react";
 import { db } from "../../../firebase/config";
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { useCollection } from "../../../hooks/useCollection";
+import { deleteFile } from "../../../lib/s3";
 import {
   Modal, Field, Input, Textarea, Select, Toggle, Badge,
   SaveButton, EmptyState, SectionHeader, AddButton,
   Table, Tr, Td, ErrorMsg, TagInput
 } from "../../../components/AdminUI";
+import FileUpload from "../../../components/FileUpload";
 import { Pencil, Trash2, Image, Video, Newspaper } from "lucide-react";
 
 const MEDIA_TYPES = [
@@ -32,7 +34,6 @@ export default function MediaGalleryManager() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState(null);
 
   const filtered = media.filter(m => m.type === activeType);
   const openAdd = () => { setEditing(null); setForm({ ...EMPTY, type: activeType }); setShowModal(true); };
@@ -41,7 +42,8 @@ export default function MediaGalleryManager() {
 
   const handleSave = async () => {
     if (!form.title.trim()) return setError("Title is required.");
-    if (!form.url.trim()) return setError("Media URL is required.");
+    // For photos, require an uploaded URL. For videos/press releases, require a URL too.
+    if (!form.url.trim()) return setError(form.type === "photo" ? "Please upload a photo." : "Media URL is required.");
     setSaving(true); setError("");
     try {
       const data = { ...form, updatedAt: serverTimestamp() };
@@ -52,9 +54,12 @@ export default function MediaGalleryManager() {
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (item) => {
     if (!window.confirm("Delete this media item?")) return;
-    await deleteDoc(doc(db, "mediaGallery", id));
+    // Delete uploaded files from S3
+    if (item.url && item.type === "photo") await deleteFile(item.url).catch(() => {});
+    if (item.thumbnailUrl) await deleteFile(item.thumbnailUrl).catch(() => {});
+    await deleteDoc(doc(db, "mediaGallery", item.id));
   };
 
   const currentType = MEDIA_TYPES.find(t => t.value === activeType);
@@ -93,28 +98,26 @@ export default function MediaGalleryManager() {
           />
         ) : activeType === "photo" ? (
           // Photo Grid View
-          <div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {filtered.map((item) => (
-                <div key={item.id} className="group relative bg-white/5 border border-white/10 rounded-xl overflow-hidden aspect-square">
-                  {item.url ? (
-                    <img src={item.url} alt={item.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display = "none"} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl">📸</div>
-                  )}
-                  <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2">
-                    <div className="text-white text-xs font-medium text-center px-2">{item.title}</div>
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(item)} className="bg-teal-600 text-white p-1.5 rounded-lg hover:bg-teal-500 transition"><Pencil size={12} /></button>
-                      <button onClick={() => handleDelete(item.id)} className="bg-red-500/80 text-white p-1.5 rounded-lg hover:bg-red-500 transition"><Trash2 size={12} /></button>
-                    </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {filtered.map((item) => (
+              <div key={item.id} className="group relative bg-white/5 border border-white/10 rounded-xl overflow-hidden aspect-square">
+                {item.url ? (
+                  <img src={item.url} alt={item.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display = "none"} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl">📸</div>
+                )}
+                <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-2">
+                  <div className="text-white text-xs font-medium text-center px-2">{item.title}</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => openEdit(item)} className="bg-teal-600 text-white p-1.5 rounded-lg hover:bg-teal-500 transition"><Pencil size={12} /></button>
+                    <button onClick={() => handleDelete(item)} className="bg-red-500/80 text-white p-1.5 rounded-lg hover:bg-red-500 transition"><Trash2 size={12} /></button>
                   </div>
-                  {!item.isPublished && (
-                    <div className="absolute top-2 left-2"><Badge status="draft" /></div>
-                  )}
                 </div>
-              ))}
-            </div>
+                {!item.isPublished && (
+                  <div className="absolute top-2 left-2"><Badge status="draft" /></div>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           // Table view for videos and press releases
@@ -150,7 +153,7 @@ export default function MediaGalleryManager() {
                 <Td>
                   <div className="flex gap-2">
                     <button onClick={() => openEdit(item)} className="text-gray-400 hover:text-teal-400 p-1 transition"><Pencil size={14} /></button>
-                    <button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-400 p-1 transition"><Trash2 size={14} /></button>
+                    <button onClick={() => handleDelete(item)} className="text-gray-400 hover:text-red-400 p-1 transition"><Trash2 size={14} /></button>
                   </div>
                 </Td>
               </Tr>
@@ -162,22 +165,47 @@ export default function MediaGalleryManager() {
         <Modal title={editing ? "Edit Media" : `Add ${activeType === "pressRelease" ? "Press Release" : activeType}`} onClose={() => setShowModal(false)} size="lg">
           <ErrorMsg msg={error} />
           <div className="grid grid-cols-2 gap-5">
+
             <div className="col-span-2">
               <Field label="Title" required>
                 <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Title..." />
               </Field>
             </div>
 
-            <div className="col-span-2">
-              <Field label={activeType === "photo" ? "Image URL" : activeType === "video" ? "Video URL (YouTube / direct)" : "Article/PDF URL"} required>
-                <Input value={form.url} onChange={(e) => set("url", e.target.value)} placeholder="https://..." />
-              </Field>
-            </div>
-
-            {activeType !== "photo" && (
+            {/* Photo: use FileUpload. Video & press release: use URL input */}
+            {form.type === "photo" ? (
               <div className="col-span-2">
-                <Field label="Thumbnail URL">
-                  <Input value={form.thumbnailUrl} onChange={(e) => set("thumbnailUrl", e.target.value)} placeholder="https://..." />
+                <Field label="Photo" required>
+                  <FileUpload
+                    value={form.url}
+                    onChange={(url) => set("url", url)}
+                    folder="gallery"
+                    accept="image/*"
+                    label="Upload photo"
+                    maxMB={15}
+                  />
+                </Field>
+              </div>
+            ) : (
+              <div className="col-span-2">
+                <Field label={form.type === "video" ? "Video URL (YouTube / Vimeo / direct)" : "Article / PDF URL"} required>
+                  <Input value={form.url} onChange={(e) => set("url", e.target.value)} placeholder="https://..." />
+                </Field>
+              </div>
+            )}
+
+            {/* Thumbnail upload for videos */}
+            {form.type === "video" && (
+              <div className="col-span-2">
+                <Field label="Thumbnail Image" hint="Optional — shown in video listings">
+                  <FileUpload
+                    value={form.thumbnailUrl}
+                    onChange={(url) => set("thumbnailUrl", url)}
+                    folder="gallery/thumbnails"
+                    accept="image/*"
+                    label="Upload thumbnail"
+                    maxMB={5}
+                  />
                 </Field>
               </div>
             )}
@@ -189,7 +217,7 @@ export default function MediaGalleryManager() {
               </Select>
             </Field>
 
-            {activeType === "pressRelease" && (
+            {form.type === "pressRelease" && (
               <>
                 <Field label="Source / Publication">
                   <Input value={form.source} onChange={(e) => set("source", e.target.value)} placeholder="Dawn News, Geo..." />
@@ -206,7 +234,7 @@ export default function MediaGalleryManager() {
               </Field>
             </div>
 
-            {activeType !== "photo" && (
+            {form.type !== "photo" && (
               <div className="col-span-2">
                 <Field label="Tags">
                   <TagInput tags={form.tags || []} onChange={(v) => set("tags", v)} />
@@ -214,7 +242,7 @@ export default function MediaGalleryManager() {
               </div>
             )}
 
-            <div className="col-span-2 flex gap-6">
+            <div className="col-span-2">
               <Toggle label="Published" checked={form.isPublished} onChange={(v) => set("isPublished", v)} />
             </div>
           </div>
