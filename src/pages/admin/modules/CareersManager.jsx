@@ -207,7 +207,7 @@ export default function CareersManager() {
                     <Input value={appForm.email} onChange={(e) => setApp("email", e.target.value)} placeholder="ali@email.com" />
                   </Field>
                   <Field label="Phone">
-                    <Input value={appForm.phone} onChange={(e) => setApp("phone", e.target.value)} placeholder="+92-XXX-XXXXXXX" />
+                    <Input value={appForm.phone} onChange={(e) => setApp("phone", e.target.value)} placeholder="+923364404140" />
                   </Field>
                   <Field label="Initial Status">
                     <Select value={appForm.status} onChange={(e) => setApp("status", e.target.value)}>

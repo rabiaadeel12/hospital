@@ -29,9 +29,9 @@ export default function Navbar() {
       {/* Top bar */}
       <div className="bg-teal-700 text-white text-xs py-1.5 px-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <a href="tel:+92XXXXXXXXXX" className="flex items-center gap-1.5 hover:text-teal-200 transition">
+          <a href="tel:+923364404140" className="flex items-center gap-1.5 hover:text-teal-200 transition">
             <Phone size={12} />
-            Emergency: <strong>+92-XXX-XXXXXXX</strong>
+            Emergency: <strong>+923364404140</strong>
           </a>
           <span className="hidden sm:block text-teal-200">Open 24/7 — Ethical & Evidence-Based Care</span>
         </div>

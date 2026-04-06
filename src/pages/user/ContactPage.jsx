@@ -27,8 +27,8 @@ export function ContactPage() {
   };
 
   const contactItems = [
-    { icon: <Phone size={20} className="text-teal-600" />, label: "Emergency / OPD", value: "+92-XXX-XXXXXXX", href: "tel:+92XXXXXXXXXX" },
-    { icon: <MessageCircle size={20} className="text-teal-600" />, label: "WhatsApp", value: "+92-XXX-XXXXXXX", href: "https://wa.me/92XXXXXXXXXX" },
+    { icon: <Phone size={20} className="text-teal-600" />, label: "Emergency / OPD", value: "+923364404140", href: "tel:+923364404140" },
+    { icon: <MessageCircle size={20} className="text-teal-600" />, label: "WhatsApp", value: "+923364404140", href: "https://wa.me/923364404140" },
     { icon: <Mail size={20} className="text-teal-600" />, label: "Email", value: "info@mafazahospital.com", href: "mailto:info@mafazahospital.com" },
     { icon: <MapPin size={20} className="text-teal-600" />, label: "Address", value: "[Hospital Address], Lahore, Pakistan", href: null },
     { icon: <Clock size={20} className="text-teal-600" />, label: "Hours", value: "Open 24 hours, 7 days a week", href: null },

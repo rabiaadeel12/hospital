@@ -1,14 +1,27 @@
-import React from "react";
-// src/pages/user/BookAppointmentPage.jsx
-import { useState } from "react";
+import React, { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
+import { useAuth } from "../../context/AuthContext";
+import { useCollection } from "../../hooks/useCollection";
 
-const departments = ["Cardiology","Pediatrics","Orthopedics","Gynecology","Internal Medicine","Dermatology","ENT","Radiology","General OPD","Emergency"];
+const TIME_SLOTS = ["09:00 AM","10:00 AM","11:00 AM","12:00 PM","02:00 PM","03:00 PM","04:00 PM","05:00 PM"];
 
 export default function BookAppointmentPage() {
-  const [form, setForm] = useState({ name:"", phone:"", email:"", department:"", date:"", time:"", notes:"" });
-  const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
+  const { currentUser } = useAuth();
+  // ✅ Fix: pull departments live from Firestore
+  const { docs: departments } = useCollection("departments", "order");
+  const activeDepts = departments.filter(d => d.isActive);
+
+  const [form, setForm] = useState({
+    name: currentUser?.displayName || "",
+    phone: "",
+    email: currentUser?.email || "",
+    department: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
+  const [status, setStatus] = useState(null);
 
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -18,11 +31,13 @@ export default function BookAppointmentPage() {
     try {
       await addDoc(collection(db, "appointments"), {
         ...form,
-        status: "pending", // pending | confirmed | cancelled
+        status: "pending",
+        // ✅ Fix: save patientUid if user is logged in so portal can find it
+        patientUid: currentUser?.uid || null,
         createdAt: serverTimestamp(),
       });
       setStatus("success");
-      setForm({ name:"", phone:"", email:"", department:"", date:"", time:"", notes:"" });
+      setForm({ name: "", phone: "", email: currentUser?.email || "", department: "", date: "", time: "", notes: "" });
     } catch (err) {
       console.error(err);
       setStatus("error");
@@ -60,17 +75,20 @@ export default function BookAppointmentPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input name="email" type="email" value={form.email} onChange={handleChange}
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input name="email" type="email" value={form.email} onChange={handleChange} required
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
         </div>
 
         <div>
+          {/* ✅ Fix: dynamic departments from Firestore */}
           <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
           <select name="department" value={form.department} onChange={handleChange} required
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Select Department</option>
-            {departments.map(d => <option key={d}>{d}</option>)}
+            {activeDepts.map(d => (
+              <option key={d.id} value={d.name}>{d.icon} {d.name}</option>
+            ))}
           </select>
         </div>
 
@@ -86,7 +104,7 @@ export default function BookAppointmentPage() {
             <select name="time" value={form.time} onChange={handleChange} required
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
               <option value="">Select Time</option>
-              {["09:00 AM","10:00 AM","11:00 AM","12:00 PM","02:00 PM","03:00 PM","04:00 PM","05:00 PM"].map(t => <option key={t}>{t}</option>)}
+              {TIME_SLOTS.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
         </div>

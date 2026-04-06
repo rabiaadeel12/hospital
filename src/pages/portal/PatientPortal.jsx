@@ -1,13 +1,12 @@
-import React from "react";
-// src/pages/portal/PatientPortal.jsx
-import { useState, useEffect } from "react";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import React, { useState, useEffect } from "react";
+import { collection, query, where, getDocs, orderBy, or } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { useAuth } from "../../context/AuthContext";
-import { Calendar, FlaskConical, User, Clock, LogOut } from "lucide-react";
+import { Calendar, FlaskConical, User, LogOut, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCollection } from "../../hooks/useCollection";
 
-const TABS = ["Appointments", "Lab Reports", "Profile"];
+const TABS = ["Appointments", "Lab Reports", "Resources", "Profile"];
 
 export default function PatientPortal() {
   const { currentUser, logout } = useAuth();
@@ -17,6 +16,10 @@ export default function PatientPortal() {
   const [labReports, setLabReports] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Fix: pull patient resources from Firestore
+  const { docs: resources } = useCollection("patientResources", "order");
+  const activeResources = resources.filter(r => r.isActive);
+
   useEffect(() => {
     if (!currentUser) return;
     fetchData();
@@ -25,22 +28,38 @@ export default function PatientPortal() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch appointments by phone or email match
-      // Assumes appointments have patientId field once confirmed by admin
-      const aRef = query(
+      // ✅ Fix: query by patientUid (logged-in users) OR email (guest bookings)
+      // Firestore doesn't support OR across different fields in one query,
+      // so we run two queries and merge
+      const byUid = query(
+        collection(db, "appointments"),
+        where("patientUid", "==", currentUser.uid),
+        orderBy("createdAt", "desc")
+      );
+      const byEmail = query(
         collection(db, "appointments"),
         where("email", "==", currentUser.email),
         orderBy("createdAt", "desc")
       );
-      const aSnap = await getDocs(aRef);
-      setAppointments(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-      // Fetch lab reports linked to patient uid
-      const lRef = query(
-        collection(db, "labReports"),
-        where("patientUid", "==", currentUser.uid)
-      );
-      const lSnap = await getDocs(lRef);
+      const [uidSnap, emailSnap] = await Promise.all([
+        getDocs(byUid).catch(() => ({ docs: [] })),
+        getDocs(byEmail).catch(() => ({ docs: [] }))
+      ]);
+
+      // Merge and deduplicate by id
+      const seen = new Set();
+      const merged = [];
+      [...uidSnap.docs, ...emailSnap.docs].forEach(d => {
+        if (!seen.has(d.id)) { seen.add(d.id); merged.push({ id: d.id, ...d.data() }); }
+      });
+      // Sort by createdAt desc
+      merged.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setAppointments(merged);
+
+      // Lab reports
+      const lRef = query(collection(db, "labReports"), where("patientUid", "==", currentUser.uid));
+      const lSnap = await getDocs(lRef).catch(() => ({ docs: [] }));
       setLabReports(lSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (err) {
       console.error(err);
@@ -50,11 +69,25 @@ export default function PatientPortal() {
   };
 
   const statusBadge = (status) => {
-    const colors = { pending: "bg-yellow-100 text-yellow-700", confirmed: "bg-green-100 text-green-700", cancelled: "bg-red-100 text-red-700" };
+    const colors = {
+      pending: "bg-yellow-100 text-yellow-700",
+      confirmed: "bg-green-100 text-green-700",
+      cancelled: "bg-red-100 text-red-700"
+    };
     return <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${colors[status] || "bg-gray-100 text-gray-600"}`}>{status}</span>;
   };
 
   const handleLogout = async () => { await logout(); navigate("/"); };
+
+  // Group resources by type
+  const resourceTypes = {
+    faq: "FAQs",
+    form: "Patient Forms",
+    insurance: "Insurance & Billing",
+    pricing: "Pricing",
+    policy: "Appointment Policy",
+    payment: "Payment Options",
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -114,6 +147,7 @@ export default function PatientPortal() {
             <div className="text-center py-16 text-gray-400">
               <FlaskConical size={48} className="mx-auto mb-3 opacity-30" />
               <p>No lab reports available yet.</p>
+              <p className="text-xs mt-2">Your reports will appear here once uploaded by the hospital.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -131,6 +165,49 @@ export default function PatientPortal() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ✅ Resources Tab - reads from patientResources collection */}
+      {activeTab === "Resources" && !loading && (
+        <div>
+          {activeResources.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <FileText size={48} className="mx-auto mb-3 opacity-30" />
+              <p>No resources available yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Group by type */}
+              {Object.entries(resourceTypes).map(([type, label]) => {
+                const items = activeResources.filter(r => r.type === type);
+                if (items.length === 0) return null;
+                return (
+                  <div key={type}>
+                    <h3 className="font-bold text-gray-700 mb-3 text-sm uppercase tracking-wider">{label}</h3>
+                    <div className="space-y-3">
+                      {items.map(r => (
+                        <div key={r.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-800">{r.title}</div>
+                              {r.content && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{r.content}</p>}
+                            </div>
+                            {r.fileUrl && (
+                              <a href={r.fileUrl} target="_blank" rel="noopener noreferrer"
+                                className="ml-4 shrink-0 text-teal-600 text-sm font-medium hover:underline flex items-center gap-1">
+                                <FileText size={14} /> Download
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

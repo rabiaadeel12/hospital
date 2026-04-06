@@ -178,7 +178,7 @@ export default function DepartmentDetailPage() {
             <div className="bg-red-50 border border-red-100 rounded-2xl p-5">
               <h3 className="font-bold text-red-700 mb-1">Emergency?</h3>
               <p className="text-red-600 text-sm mb-3">24/7 emergency services available.</p>
-              <a href="tel:+92XXXXXXXXXX" className="block text-center bg-red-600 text-white font-bold py-2.5 rounded-xl hover:bg-red-700 transition text-sm">
+              <a href="tel:+923364404140" className="block text-center bg-red-600 text-white font-bold py-2.5 rounded-xl hover:bg-red-700 transition text-sm">
                 📞 Call Emergency
               </a>
             </div>

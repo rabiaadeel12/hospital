@@ -1,4 +1,4 @@
-import React from "react";// src/pages/admin/AdminDashboard.jsx
+import React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -14,11 +14,13 @@ import PatientResourcesManager from "./modules/PatientResourcesManager";
 import HealthEducationManager from "./modules/HealthEducationManager";
 import CareersManager from "./modules/CareersManager";
 import MediaGalleryManager from "./modules/MediaGalleryManager";
+import ContactInquiriesManager from "./modules/ContactInquiriesManager";
+import LabReportsManager from "./modules/LabReportsManager";
 
 import {
   LayoutDashboard, Building2, Stethoscope, HeartPulse,
   FolderHeart, BookOpen, Briefcase, ImageIcon,
-  Calendar, LogOut, ChevronRight, Menu, X
+  Calendar, LogOut, ChevronRight, Menu, FlaskConical, Mail
 } from "lucide-react";
 
 const NAV = [
@@ -35,6 +37,7 @@ const NAV = [
     section: "Patient",
     items: [
       { id: "appointments",     label: "Appointments",      icon: Calendar },
+      { id: "labReports",       label: "Lab Reports",       icon: FlaskConical },
       { id: "patientResources", label: "Patient Resources", icon: FolderHeart },
     ]
   },
@@ -45,6 +48,12 @@ const NAV = [
       { id: "careers",          label: "Careers",           icon: Briefcase },
       { id: "media",            label: "Media Gallery",     icon: ImageIcon },
     ]
+  },
+  {
+    section: "Inbox",
+    items: [
+      { id: "contactInquiries", label: "Contact Inquiries", icon: Mail },
+    ]
   }
 ];
 
@@ -52,7 +61,7 @@ const NAV = [
 function AppointmentsManager() {
   const { docs: appointments, loading } = useCollection("appointments", "createdAt");
   const statusCls = {
-    pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    pending:   "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
     confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
   };
@@ -113,31 +122,38 @@ function AppointmentsManager() {
   );
 }
 
-// ── Overview (inline) ──────────────────────────────────────────
+// ── Overview ──────────────────────────────────────────────────
 function Overview({ onNavigate }) {
   const { docs: appointments } = useCollection("appointments", "createdAt");
-  const { docs: doctors } = useCollection("doctors", "order");
-  const { docs: departments } = useCollection("departments", "order");
-  const { docs: posts } = useCollection("healthEducation", "createdAt");
-  const { docs: jobs } = useCollection("careers", "createdAt");
-  const { docs: media } = useCollection("mediaGallery", "order");
+  const { docs: doctors }      = useCollection("doctors", "order");
+  const { docs: departments }  = useCollection("departments", "order");
+  const { docs: posts }        = useCollection("healthEducation", "createdAt");
+  const { docs: jobs }         = useCollection("careers", "createdAt");
+  const { docs: media }        = useCollection("mediaGallery", "order");
+  const { docs: inquiries }    = useCollection("contactInquiries", "createdAt");
+  const { docs: labReports }   = useCollection("labReports", "createdAt");
 
-  const pending = appointments.filter(a => a.status === "pending").length;
+  const pending  = appointments.filter(a => a.status === "pending").length;
+  const unread   = inquiries.filter(i => !i.isRead).length;
+
   const stats = [
-    { id:"appointments", label:"Appointments", value: appointments.length, sub:`${pending} pending`, grad:"from-blue-600/20 to-blue-500/5 border-blue-500/20", accent:"text-blue-400" },
-    { id:"doctors",      label:"Doctors",      value: doctors.length,      sub:`${doctors.filter(d=>d.isActive).length} active`, grad:"from-teal-600/20 to-teal-500/5 border-teal-500/20", accent:"text-teal-400" },
-    { id:"departments",  label:"Departments",  value: departments.length,  sub:`${departments.filter(d=>d.isActive).length} active`, grad:"from-violet-600/20 to-violet-500/5 border-violet-500/20", accent:"text-violet-400" },
-    { id:"healthEducation", label:"Blog Posts", value: posts.length,       sub:`${posts.filter(p=>p.isPublished).length} published`, grad:"from-amber-600/20 to-amber-500/5 border-amber-500/20", accent:"text-amber-400" },
-    { id:"careers",      label:"Job Openings", value: jobs.filter(j=>j.isActive).length, sub:`${jobs.length} total`, grad:"from-rose-600/20 to-rose-500/5 border-rose-500/20", accent:"text-rose-400" },
-    { id:"media",        label:"Media Items",  value: media.length,        sub:`${media.filter(m=>m.isPublished).length} published`, grad:"from-emerald-600/20 to-emerald-500/5 border-emerald-500/20", accent:"text-emerald-400" },
+    { id:"appointments",     label:"Appointments",     value: appointments.length, sub:`${pending} pending`,                            grad:"from-blue-600/20 to-blue-500/5 border-blue-500/20",    accent:"text-blue-400" },
+    { id:"doctors",          label:"Doctors",          value: doctors.length,      sub:`${doctors.filter(d=>d.isActive).length} active`, grad:"from-teal-600/20 to-teal-500/5 border-teal-500/20",    accent:"text-teal-400" },
+    { id:"departments",      label:"Departments",      value: departments.length,  sub:`${departments.filter(d=>d.isActive).length} active`, grad:"from-violet-600/20 to-violet-500/5 border-violet-500/20", accent:"text-violet-400" },
+    { id:"healthEducation",  label:"Blog Posts",       value: posts.length,        sub:`${posts.filter(p=>p.isPublished).length} published`, grad:"from-amber-600/20 to-amber-500/5 border-amber-500/20",  accent:"text-amber-400" },
+    { id:"careers",          label:"Job Openings",     value: jobs.filter(j=>j.isActive).length, sub:`${jobs.length} total`,            grad:"from-rose-600/20 to-rose-500/5 border-rose-500/20",    accent:"text-rose-400" },
+    { id:"media",            label:"Media Items",      value: media.length,        sub:`${media.filter(m=>m.isPublished).length} published`, grad:"from-emerald-600/20 to-emerald-500/5 border-emerald-500/20", accent:"text-emerald-400" },
+    { id:"contactInquiries", label:"Inquiries",        value: inquiries.length,    sub:`${unread} unread`,                              grad:"from-pink-600/20 to-pink-500/5 border-pink-500/20",    accent:"text-pink-400" },
+    { id:"labReports",       label:"Lab Reports",      value: labReports.length,   sub:"uploaded reports",                              grad:"from-cyan-600/20 to-cyan-500/5 border-cyan-500/20",    accent:"text-cyan-400" },
   ];
+
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
         <p className="text-gray-400 text-sm mt-1">Welcome to the Mafaza tul Hayat Hospital CMS.</p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {stats.map(({ id, label, value, sub, grad, accent }) => (
           <button key={id} onClick={() => onNavigate(id)}
             className={`bg-gradient-to-br ${grad} border rounded-2xl p-5 text-left hover:scale-[1.02] transition`}>
@@ -147,6 +163,8 @@ function Overview({ onNavigate }) {
           </button>
         ))}
       </div>
+
+      {/* Recent Appointments */}
       <div>
         <h2 className="text-base font-semibold text-white mb-3">Recent Appointments</h2>
         <div className="bg-[#1a1d23] border border-white/10 rounded-xl overflow-hidden">
@@ -178,20 +196,25 @@ export default function AdminDashboard() {
   const { logout, currentUser } = useAuth();
   const navigate = useNavigate();
   const { docs: appointments } = useCollection("appointments", "createdAt");
+  const { docs: inquiries }    = useCollection("contactInquiries", "createdAt");
+
   const pendingCount = appointments.filter(a => a.status === "pending").length;
+  const unreadCount  = inquiries.filter(i => !i.isRead).length;
 
   const handleLogout = async () => { await logout(); navigate("/"); };
 
   const VIEWS = {
-    overview: <Overview onNavigate={setActive} />,
-    departments: <DepartmentsManager />,
-    doctors: <DoctorsManager />,
-    services: <ServicesManager />,
-    appointments: <AppointmentsManager />,
+    overview:         <Overview onNavigate={setActive} />,
+    departments:      <DepartmentsManager />,
+    doctors:          <DoctorsManager />,
+    services:         <ServicesManager />,
+    appointments:     <AppointmentsManager />,
+    labReports:       <LabReportsManager />,
     patientResources: <PatientResourcesManager />,
-    healthEducation: <HealthEducationManager />,
-    careers: <CareersManager />,
-    media: <MediaGalleryManager />,
+    healthEducation:  <HealthEducationManager />,
+    careers:          <CareersManager />,
+    media:            <MediaGalleryManager />,
+    contactInquiries: <ContactInquiriesManager />,
   };
 
   const activeLabel = NAV.flatMap(n => n.items).find(i => i.id === active)?.label || "Overview";
@@ -201,7 +224,6 @@ export default function AdminDashboard() {
 
       {/* Sidebar */}
       <aside className={`${collapsed ? "w-[60px]" : "w-[220px]"} bg-[#0d0f12] border-r border-white/[0.07] flex flex-col transition-all duration-200 shrink-0`}>
-        {/* Logo row */}
         <div className="h-14 flex items-center justify-between px-3.5 border-b border-white/[0.07] shrink-0">
           {!collapsed && (
             <div className="flex items-center gap-2">
@@ -214,7 +236,6 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Nav items */}
         <nav className="flex-1 py-3 overflow-y-auto space-y-4">
           {NAV.map(({ section, items }) => (
             <div key={section}>
@@ -223,7 +244,10 @@ export default function AdminDashboard() {
               )}
               {items.map(({ id, label, icon: Icon }) => {
                 const isActive = active === id;
-                const badge = id === "appointments" && pendingCount > 0 ? pendingCount : null;
+                // Badge logic — pending appointments and unread inquiries
+                const badge = id === "appointments" && pendingCount > 0 ? pendingCount
+                            : id === "contactInquiries" && unreadCount > 0 ? unreadCount
+                            : null;
                 return (
                   <button key={id} onClick={() => setActive(id)} title={collapsed ? label : undefined}
                     className={`w-full flex items-center gap-2.5 py-2 px-3.5 text-sm transition group relative
@@ -243,7 +267,6 @@ export default function AdminDashboard() {
           ))}
         </nav>
 
-        {/* Bottom user row */}
         <div className="border-t border-white/[0.07] p-3 flex items-center gap-2">
           <div className="w-6 h-6 bg-teal-600/20 rounded-full flex items-center justify-center text-teal-400 text-[10px] font-bold shrink-0">
             {currentUser?.email?.[0]?.toUpperCase()}
@@ -262,7 +285,6 @@ export default function AdminDashboard() {
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto flex flex-col">
-        {/* Topbar */}
         <div className="h-14 border-b border-white/[0.07] flex items-center justify-between px-6 shrink-0 bg-[#13151a] sticky top-0 z-10">
           <div className="flex items-center gap-1.5 text-sm text-gray-600">
             <span>Admin</span>
@@ -275,7 +297,6 @@ export default function AdminDashboard() {
           </a>
         </div>
 
-        {/* Content */}
         <div className="flex-1 p-6 max-w-7xl w-full">
           {VIEWS[active] || <div className="text-gray-400">Coming soon.</div>}
         </div>

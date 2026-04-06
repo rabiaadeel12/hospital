@@ -63,26 +63,26 @@ export default function Footer() {
             <h3 className="text-sm font-bold text-teal-300 uppercase tracking-widest mb-4">Contact Us</h3>
             <ul className="space-y-3">
               <li>
-                <a href="tel:+92XXXXXXXXXX"
+                <a href="tel:+923364404140"
                   className="flex items-start gap-3 text-gray-300 hover:text-white transition-colors group">
                   <div className="w-8 h-8 bg-teal-800 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-teal-700 transition-colors">
                     <Phone size={14} className="text-teal-400" />
                   </div>
                   <div>
                     <div className="text-xs text-teal-400 mb-0.5">Emergency / OPD</div>
-                    <div className="text-sm">+92-XXX-XXXXXXX</div>
+                    <div className="text-sm">+923364404140</div>
                   </div>
                 </a>
               </li>
               <li>
-                <a href="https://wa.me/92XXXXXXXXXX" target="_blank" rel="noopener noreferrer"
+                <a href="https://wa.me/923364404140" target="_blank" rel="noopener noreferrer"
                   className="flex items-start gap-3 text-gray-300 hover:text-white transition-colors group">
                   <div className="w-8 h-8 bg-teal-800 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-teal-700 transition-colors">
                     <MessageCircle size={14} className="text-teal-400" />
                   </div>
                   <div>
                     <div className="text-xs text-teal-400 mb-0.5">WhatsApp</div>
-                    <div className="text-sm">+92-XXX-XXXXXXX</div>
+                    <div className="text-sm">+923364404140</div>
                   </div>
                 </a>
               </li>
@@ -135,7 +135,7 @@ export default function Footer() {
 
       {/* Floating WhatsApp button */}
       <a
-        href="https://wa.me/92XXXXXXXXXX"
+        href="https://wa.me/923364404140"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 bg-green-500 text-white p-3.5 rounded-full shadow-xl hover:bg-green-600 transition-all hover:scale-110 z-50"
